@@ -1,0 +1,4 @@
+Flask>=3.0,<4
+flask-sock>=0.7,<1
+PyAutoGUI>=0.9.54,<1
+qrcode>=7.4,<9

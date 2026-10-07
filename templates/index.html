@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#101114">
+  <title>Mouse Remote</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #101114; color: #f5f5f7; }
+    body { display: flex; flex-direction: column; padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)); gap: 14px; }
+    header { display:flex; align-items:center; justify-content:space-between; min-height:44px; }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:650; letter-spacing:.02em; }
+    .mark { width:32px; height:32px; display:grid; place-items:center; border-radius:10px; background:#7566f5; font-size:17px; }
+    .connection { display:flex; align-items:center; gap:8px; color:#a7a8b0; font-size:13px; }
+    #keyboard-toggle { border:0; border-radius:12px; padding:10px 12px; background:#252630; font-size:13px; }
+    #status { width:8px; height:8px; border-radius:50%; background:#f06464; box-shadow:0 0 12px #f0646455; }
+    #status.connected { background:#4bd28d; box-shadow:0 0 12px #4bd28d77; }
+    #pad { flex:1; min-height:0; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #292a31; border-radius:24px; background:radial-gradient(ellipse at 50% 45%, #1c1d24 0%, #15161b 65%); touch-action:none; }
+    #pad::before { content:""; position:absolute; inset:12px; border:1px solid #ffffff08; border-radius:17px; pointer-events:none; }
+    .pad-icon { color:#777985; font-size:30px; margin-bottom:12px; }
+    .pad-title { color:#c6c6ce; font-size:16px; font-weight:600; }
+    .hint { margin-top:8px; color:#777985; font-size:12px; }
+    .buttons { display:grid; grid-template-columns:1fr 1fr 54px; gap:10px; height:72px; }
+    button { border:1px solid #303139; border-radius:17px; background:#202127; color:#f5f5f7; font-size:15px; font-weight:600; touch-action:manipulation; }
+    button:active, button.pressed { background:#343540; transform:scale(.98); }
+    button span { display:block; margin-top:3px; color:#90919c; font-size:10px; font-weight:500; }
+    #scroll-up, #scroll-down { font-size:17px; }
+    .scroll-buttons { display:grid; grid-template-rows:1fr 1fr; gap:6px; }
+    footer { text-align:center; color:#656671; font-size:11px; }
+    #keyboard-sheet { position:fixed; z-index:5; left:0; right:0; bottom:0; padding:16px 8px max(22px, env(safe-area-inset-bottom)); background:#202127; border-top:1px solid #393a43; border-radius:22px 22px 0 0; box-shadow:0 -16px 50px #0009; transform:translateY(110%); transition:transform .22s ease; }
+    #keyboard-sheet.open { transform:translateY(0); }
+    .keyboard-head { display:flex; justify-content:space-between; align-items:center; margin:0 5px 14px; color:#aaaab4; font-size:13px; }
+    .key-rows { display:flex; flex-direction:column; gap:9px; }
+    .key-row { display:flex; justify-content:center; gap:5px; }
+    .key { flex:1; height:52px; min-width:0; border:0; border-radius:9px; background:#454650; box-shadow:0 2px 0 #14151a; font-size:19px; text-transform:lowercase; }
+    .key.wide { flex:1.45; font-size:14px; }
+    .key.space { flex:4.5; }
+    .key.action { background:#6256d9; }
+    .key.active { background:#867cf0; }
+    #keyboard-close { border:0; background:none; color:#aaaab4; font-size:14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><div class="mark">⌁</div><div>Mouse Remote</div></div>
+    <div class="connection"><button id="keyboard-toggle">⌨ Tastiera</button><i id="status"></i><span id="status-text">Connessione…</span></div>
+  </header>
+  <main id="pad" aria-label="Touchpad">
+    <div class="pad-icon">⌖</div>
+    <div class="pad-title">Touchpad</div>
+    <div class="hint">Muovi · tocca per cliccare · due dita per scorrere</div>
+  </main>
+  <section class="buttons" aria-label="Controlli mouse">
+    <button id="left">Clic sinistro<span>Tocca il touchpad</span></button>
+    <button id="right">Clic destro<span>Menu contestuale</span></button>
+    <div class="scroll-buttons">
+      <button id="scroll-up" aria-label="Scorri in alto">⌃</button>
+      <button id="scroll-down" aria-label="Scorri in basso">⌄</button>
+    </div>
+  </section>
+  <footer>iPhone e PC devono essere collegati alla stessa rete Wi-Fi</footer>
+  <section id="keyboard-sheet" aria-label="Tastiera virtuale">
+    <div class="keyboard-head"><span>Tastiera del PC</span><button id="keyboard-close">Chiudi ✕</button></div>
+    <div class="key-rows" id="key-rows"></div>
+  </section>
+<script>
+  const pad = document.querySelector('#pad');
+  const status = document.querySelector('#status');
+  const statusText = document.querySelector('#status-text');
+  let socket;
+  let oneFingerStart = null;
+  let lastPoint = null;
+  let moved = false;
+
+  function connect() {
+    const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    socket = new WebSocket(`${scheme}//${location.host}/mouse`);
+    socket.onopen = () => { status.classList.add('connected'); statusText.textContent = 'Connesso'; };
+    socket.onclose = () => { status.classList.remove('connected'); statusText.textContent = 'Riconnessione…'; setTimeout(connect, 1200); };
+    socket.onerror = () => socket.close();
+  }
+  function send(data) {
+    if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(data));
+  }
+  connect();
+
+  let touchScrollY = null;
+  let scrollRemainder = 0;
+  let scrollVelocity = 0;
+  let lastScrollAt = 0;
+  let inertiaFrame = null;
+  const scrollSensitivity = 14;
+  function sendScroll(amount) {
+    scrollRemainder += amount;
+    const ticks = Math.max(-100, Math.min(100, Math.trunc(scrollRemainder)));
+    if (ticks) {
+      send({ type: 'scroll', amount: ticks });
+      scrollRemainder -= ticks;
+    }
+  }
+  function startScrollInertia() {
+    if (inertiaFrame) cancelAnimationFrame(inertiaFrame);
+    let previous = performance.now();
+    const coast = now => {
+      const dt = Math.min(32, now - previous);
+      previous = now;
+      scrollVelocity *= Math.pow(0.90, dt / 16);
+      const amount = scrollVelocity * dt;
+      if (Math.abs(scrollVelocity) < 0.012) { inertiaFrame = null; return; }
+      sendScroll(amount);
+      inertiaFrame = requestAnimationFrame(coast);
+    };
+    if (Math.abs(scrollVelocity) > 0.06) inertiaFrame = requestAnimationFrame(coast);
+  }
+  pad.addEventListener('touchstart', event => {
+    event.preventDefault();
+    if (event.touches.length === 1) {
+      const touch = event.touches[0];
+      oneFingerStart = { x: touch.clientX, y: touch.clientY };
+      lastPoint = oneFingerStart;
+      moved = false;
+    } else {
+      oneFingerStart = null;
+      lastPoint = null;
+      moved = true;
+      if (event.touches.length === 2) {
+        if (inertiaFrame) cancelAnimationFrame(inertiaFrame);
+        inertiaFrame = null;
+        scrollVelocity = 0;
+        touchScrollY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        scrollRemainder = 0;
+        lastScrollAt = performance.now();
+      }
+    }
+  }, { passive: false });
+  pad.addEventListener('touchmove', event => {
+    event.preventDefault();
+    if (event.touches.length === 1 && lastPoint) {
+      const touch = event.touches[0];
+      const dx = touch.clientX - lastPoint.x;
+      const dy = touch.clientY - lastPoint.y;
+      if (Math.abs(dx) + Math.abs(dy) > 0) {
+        moved = true;
+        send({ type: 'move', dx: dx * 1.8, dy: dy * 1.8 });
+      }
+      lastPoint = { x: touch.clientX, y: touch.clientY };
+    } else if (event.touches.length === 2) {
+      const y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+      if (touchScrollY !== null) {
+        const now = performance.now();
+        const delta = y - touchScrollY;
+        const elapsed = Math.max(1, now - lastScrollAt);
+        const amount = -delta * scrollSensitivity;
+        sendScroll(amount);
+        scrollVelocity = Math.max(-2.5, Math.min(2.5, amount / elapsed * 0.65));
+        lastScrollAt = now;
+      }
+      touchScrollY = y;
+    }
+  }, { passive: false });
+  pad.addEventListener('touchend', event => {
+    event.preventDefault();
+    if (touchScrollY !== null) startScrollInertia();
+    if (event.touches.length === 0) {
+      if (oneFingerStart && !moved) send({ type: 'click' });
+      oneFingerStart = null;
+      lastPoint = null;
+      touchScrollY = null;
+      scrollRemainder = 0;
+    } else if (event.touches.length === 1) {
+      // If a second finger was lifted, don't turn the remaining gesture into a click.
+      oneFingerStart = null;
+      lastPoint = null;
+      touchScrollY = null;
+      scrollRemainder = 0;
+      moved = true;
+    }
+  }, { passive: false });
+
+  document.querySelector('#right').addEventListener('click', () => send({ type: 'click', button: 'right' }));
+  document.querySelector('#scroll-up').addEventListener('click', () => send({ type: 'scroll', amount: 5 }));
+  document.querySelector('#scroll-down').addEventListener('click', () => send({ type: 'scroll', amount: -5 }));
+  document.querySelector('#left').addEventListener('click', () => send({ type: 'click' }));
+
+  const keyboard = document.querySelector('#keyboard-sheet');
+  const rows = document.querySelector('#key-rows');
+  let shiftNext = false;
+  document.querySelector('#keyboard-toggle').addEventListener('click', () => keyboard.classList.toggle('open'));
+  document.querySelector('#keyboard-close').addEventListener('click', () => keyboard.classList.remove('open'));
+  let symbolMode = false;
+  function renderKeyboard() {
+    rows.replaceChildren();
+    const definitions = symbolMode ? [
+      '1234567890', '@#$%&-*+=()', '"\':;!?/\\'
+    ] : ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+    const makeButton = (label, key, options = {}) => {
+      const button = document.createElement('button');
+      button.className = `key${options.wide ? ' wide' : ''}${options.space ? ' space' : ''}${options.action ? ' action' : ''}`;
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        if (key === 'shift') { shiftNext = !shiftNext; button.classList.toggle('active', shiftNext); return; }
+        if (key === 'layout') { symbolMode = !symbolMode; shiftNext = false; renderKeyboard(); return; }
+        send({ type:'key', key, shift:shiftNext });
+        shiftNext = false;
+        document.querySelectorAll('.key').forEach(keyButton => keyButton.classList.remove('active'));
+      });
+      return button;
+    };
+    definitions.forEach((characters, index) => {
+      const line = document.createElement('div'); line.className = 'key-row';
+      if (!symbolMode && index === 2) line.appendChild(makeButton('⇧', 'shift', { wide:true, action:true }));
+      [...characters].forEach(key => line.appendChild(makeButton(key, key)));
+      if (!symbolMode && index === 2) line.appendChild(makeButton('⌫', 'backspace', { wide:true, action:true }));
+      rows.appendChild(line);
+    });
+    const bottom = document.createElement('div'); bottom.className = 'key-row';
+    bottom.appendChild(makeButton(symbolMode ? 'ABC' : '?123', 'layout', { wide:true, action:true }));
+    if (!symbolMode) bottom.appendChild(makeButton(',', ',', { wide:true }));
+    bottom.appendChild(makeButton('spazio', 'space', { space:true }));
+    if (!symbolMode) bottom.appendChild(makeButton('.', '.', { wide:true }));
+    bottom.appendChild(makeButton('↵', 'enter', { wide:true, action:true }));
+    rows.appendChild(bottom);
+  }
+  renderKeyboard();
+</script>
+</body>
+</html>
