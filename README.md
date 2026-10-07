@@ -29,4 +29,6 @@ Se il server era già in esecuzione quando hai aggiornato il codice, fermalo con
 - I pulsanti freccia eseguono piccoli scorrimenti.
 - Tocca `Tastiera` in alto per aprire la tastiera virtuale: la fila numerica è sempre visibile e `?123` apre i simboli.
 
+Il fail-safe di PyAutoGUI sugli angoli è disattivato, così puoi continuare a controllare il puntatore dal telefono anche quando raggiunge un angolo dello schermo.
+
 Premi `Ctrl+C` nel terminale per arrestare il server.

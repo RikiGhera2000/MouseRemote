@@ -27,6 +27,7 @@ app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 sock = Sock(app)
 pyautogui.PAUSE = 0
+pyautogui.FAILSAFE = False
 
 
 @app.after_request
