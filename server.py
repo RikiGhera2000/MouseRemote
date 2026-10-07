@@ -14,6 +14,14 @@ HOST = "0.0.0.0"
 PORT = 5000
 MAX_DELTA = 300
 MAX_SCROLL = 100
+SHIFTED_KEYS = {
+    "!": ("1", True), "@": ("2", True), "#": ("3", True), "$": ("4", True),
+    "%": ("5", True), "^": ("6", True), "&": ("7", True), "*": ("8", True),
+    "(": ("9", True), ")": ("0", True), "_": ("-", True), "+": ("=", True),
+    "{": ("[", True), "}": ("]", True), "|": ("\\", True), ":": (";", True),
+    '"': ("'", True), "<": (",", True), ">": (".", True), "?": ("/", True),
+    "~": ("`", True),
+}
 
 app = Flask(__name__)
 sock = Sock(app)
@@ -84,8 +92,12 @@ def mouse(ws):
                 pyautogui.scroll(int(amount))
             elif kind == "key":
                 key = event.get("key")
+                shift = bool(event.get("shift"))
+                if isinstance(key, str) and key in SHIFTED_KEYS:
+                    key, shifted = SHIFTED_KEYS[key]
+                    shift = shift or shifted
                 if isinstance(key, str) and key in pyautogui.KEYBOARD_KEYS:
-                    if event.get("shift") and key not in ("shift", "ctrl", "alt"):
+                    if shift and key not in ("shift", "ctrl", "alt"):
                         pyautogui.hotkey("shift", key)
                     else:
                         pyautogui.press(key)

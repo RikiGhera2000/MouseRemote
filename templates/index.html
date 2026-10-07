@@ -34,7 +34,8 @@
     .keyboard-head { display:flex; justify-content:space-between; align-items:center; margin:0 5px 14px; color:#aaaab4; font-size:13px; }
     .key-rows { display:flex; flex-direction:column; gap:9px; }
     .key-row { display:flex; justify-content:center; gap:5px; }
-    .key { flex:1; height:52px; min-width:0; border:0; border-radius:9px; background:#454650; box-shadow:0 2px 0 #14151a; font-size:19px; text-transform:lowercase; }
+    .key { flex:1; height:54px; min-width:0; border:0; border-radius:9px; background:#454650; box-shadow:0 2px 0 #14151a; font-size:20px; }
+    .key-row:nth-child(3) { padding:0 13px; }
     .key.wide { flex:1.45; font-size:14px; }
     .key.space { flex:4.5; }
     .key.action { background:#6256d9; }
@@ -193,8 +194,8 @@
   function renderKeyboard() {
     rows.replaceChildren();
     const definitions = symbolMode ? [
-      '1234567890', '@#$%&-*+=()', '"\':;!?/\\'
-    ] : ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+      '1234567890', '@#$%&-*+=()', ['"', "'", ':', ';', '!', '?', '/', '\\', '[', ']'], ['=', '<', '>', '{', '}', '_', '`', '~', '^', '|']
+    ] : ['1234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
     const makeButton = (label, key, options = {}) => {
       const button = document.createElement('button');
       button.className = `key${options.wide ? ' wide' : ''}${options.space ? ' space' : ''}${options.action ? ' action' : ''}`;
@@ -210,9 +211,11 @@
     };
     definitions.forEach((characters, index) => {
       const line = document.createElement('div'); line.className = 'key-row';
-      if (!symbolMode && index === 2) line.appendChild(makeButton('⇧', 'shift', { wide:true, action:true }));
-      [...characters].forEach(key => line.appendChild(makeButton(key, key)));
-      if (!symbolMode && index === 2) line.appendChild(makeButton('⌫', 'backspace', { wide:true, action:true }));
+      const rowKeys = Array.isArray(characters) ? characters : [...characters];
+      if (!symbolMode && index === 3) line.appendChild(makeButton('⇧', 'shift', { wide:true, action:true }));
+      rowKeys.forEach(key => line.appendChild(makeButton(key, key)));
+      if (!symbolMode && index === 3) line.appendChild(makeButton('⌫', 'backspace', { wide:true, action:true }));
+      if (symbolMode && index === 3) line.appendChild(makeButton('⌫', 'backspace', { wide:true, action:true }));
       rows.appendChild(line);
     });
     const bottom = document.createElement('div'); bottom.className = 'key-row';

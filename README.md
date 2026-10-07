@@ -25,6 +25,6 @@ Il terminale mostra l'indirizzo del PC e un QR code. Scansionalo con la fotocame
 - Usa il pulsante destro per aprire il menu contestuale.
 - Trascina due dita sul touchpad per scorrere.
 - I pulsanti freccia eseguono piccoli scorrimenti.
-- Tocca `Tastiera` in alto per aprire la tastiera virtuale e inviare i tasti al PC.
+- Tocca `Tastiera` in alto per aprire la tastiera virtuale: la fila numerica è sempre visibile e `?123` apre i simboli.
 
 Premi `Ctrl+C` nel terminale per arrestare il server.
