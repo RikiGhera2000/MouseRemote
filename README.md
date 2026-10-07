@@ -18,6 +18,8 @@ py server.py
 
 Il terminale mostra l'indirizzo del PC e un QR code. Scansionalo con la fotocamera dell'iPhone e apri il collegamento in Safari. Il primo accesso potrebbe richiedere di consentire Python nella rete privata di Windows.
 
+Se il server era già in esecuzione quando hai aggiornato il codice, fermalo con `Ctrl+C` e riavvialo con `py server.py`. Poi ricarica la pagina in Safari.
+
 ## Controlli
 
 - Muovi un dito sul touchpad per muovere il puntatore.
